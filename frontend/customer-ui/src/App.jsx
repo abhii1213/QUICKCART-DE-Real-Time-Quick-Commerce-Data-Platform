@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import "./App.css";
 import { api } from "./services/api";
 import { buildEvent } from "./utils/eventBuilder";
 
-const mockProducts = [
-  { product_id: "P101", name: "Milk", price: 52 },
-  { product_id: "P102", name: "Bread", price: 35 },
-  { product_id: "P103", name: "Eggs", price: 80 },
-  { product_id: "P104", name: "Rice", price: 65 },
-];
+// const mockProducts = [
+//   { product_id: "P101", name: "Milk", price: 52 },
+//   { product_id: "P102", name: "Bread", price: 35 },
+//   { product_id: "P103", name: "Eggs", price: 80 },
+//   { product_id: "P104", name: "Rice", price: 65 },
+// ];
+
 
 function App() {
   const [logs, setLogs] = useState([]);
@@ -20,7 +21,22 @@ function App() {
     city: "",
     area: "",
   });
+  const [products, setProducts] = useState([]);
 
+  
+useEffect(() => {
+  fetchProducts();
+}, []);
+
+const fetchProducts = async () => {
+  try {
+    const response = await api.get("/products");
+    setProducts(response.data);
+  } catch (err) {
+    console.error(err);
+  }
+};
+  
   const logEvent = (event) => {
     setLogs((prev) => [JSON.stringify(event, null, 2), ...prev]);
   };
@@ -115,6 +131,7 @@ function App() {
 
     sendEvent("/order-event", event);
   };
+  
 
   return (
     <div className="container">
@@ -131,10 +148,10 @@ function App() {
 
       <section className="card">
         <h2>Products</h2>
-        {mockProducts.map((product) => (
+        {products.map((product) => (
           <div key={product.product_id} className="product-row">
             <span>
-              {product.name} - ₹{product.price}
+              {product.product_name} - ₹{product.price}
             </span>
             <div>
               <button onClick={() => handleViewProduct(product)}>View</button>
