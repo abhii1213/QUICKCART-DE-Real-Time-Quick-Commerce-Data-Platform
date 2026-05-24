@@ -1,36 +1,55 @@
 from kafka import KafkaConsumer
 import json
-from datetime import datetime
+from datetime import datetime, UTC
+from warehouse.databricks_writer import DatabricksWriter
 
-# Consumer for product-related events
-# Purpose: Consume product/admin events like create, price update, delist.
-# Handles:
-# - PRODUCT_CREATED
-# - PRICE_UPDATED
-# - PRODUCT_DELISTED
 
-consumer = KafkaConsumer(
-    "product_events",   # Kafka topic to subscribe to
-    bootstrap_servers="localhost:9092",   # Kafka broker address
-    auto_offset_reset="earliest",   # Read existing messages if no committed offset
-    enable_auto_commit=True,   # Automatically commit offsets after processing
-    group_id="product-consumer-group",   # Consumer group identifier
-    value_deserializer=lambda x: json.loads(x.decode("utf-8"))   # Convert bytes -> Python dict
-)
+def start_consumer():
+    """
+    Consumer for product catalog events
 
-print("Product Consumer Started... Listening to product_events...")
+    Handles:
+    - PRODUCT_CREATED
+    - PRICE_UPDATED
+    - PRODUCT_DELISTED
+    - FLASH_SALE_STARTED
 
-# Continuously listen for incoming Kafka messages
-for message in consumer:
-    event = message.value
+    Responsibilities:
+    - Consume product catalog change events
+    - Enrich processed records
+    - Persist Bronze product events
 
-    # Enrich event with processing metadata
-    processed_event = {
-        **event,
-        "processing_ts": datetime.utcnow().isoformat(),   # Processing timestamp
-        "consumer_name": "product_consumer",              # Which consumer processed it
-        "processing_status": "SUCCESS"                    # Processing status
-    }
+    Target Table:
+    quickcart_bronze.bronze_product_events
+    """
 
-    print("\nProcessed Product Event:")
-    print(json.dumps(processed_event, indent=2))
+    consumer = KafkaConsumer(
+        "product_events",
+        bootstrap_servers="localhost:9092",
+        auto_offset_reset="latest",
+        enable_auto_commit=True,
+        group_id="product-consumer-group",
+        value_deserializer=lambda x: json.loads(x.decode("utf-8"))
+    )
+
+    db_writer = DatabricksWriter()
+
+    print("Product Consumer Started...")
+
+    for message in consumer:
+        event = message.value
+
+        processed_event = {
+            **event,
+            "processing_ts": datetime.now(UTC).isoformat(),
+            "consumer_name": "product_consumer",
+            "processing_status": "SUCCESS"
+        }
+
+        print("\nProcessed Product Event:")
+        print(json.dumps(processed_event, indent=2))
+
+        try:
+            db_writer.insert_event("bronze_product_events", processed_event)
+        except Exception as e:
+            print("Databricks Insert Failed:", str(e))
