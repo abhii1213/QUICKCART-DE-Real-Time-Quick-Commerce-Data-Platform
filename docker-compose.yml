@@ -42,8 +42,22 @@ services:
       KAFKA_CLUSTERS_0_NAME: quickcart
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
+  postgres:
+    image: postgres:15
+    container_name: quickcart-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: quickcart
+      POSTGRES_USER: quickcart_user
+      POSTGRES_PASSWORD: quickcart_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
 # This tells Docker to create persistent storage on your hard drive
 volumes:
   zookeeper_data:
   zookeeper_log:
   kafka_data:
+  postgres_data:
