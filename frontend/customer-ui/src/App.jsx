@@ -19,12 +19,14 @@ function App() {
   });
 
   const [products, setProducts] = useState([]);
+  const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [cart, setCart] = useState([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [message, setMessage] = useState("");
 
   /*
-    Fetch product catalog after login
+    Fetch product catalog
   */
   const fetchProducts = async () => {
     try {
@@ -35,11 +37,59 @@ function App() {
     }
   };
 
+  /*
+    Load products after login
+  */
   useEffect(() => {
     if (token) {
       fetchProducts();
     }
   }, [token]);
+
+  /*
+    Debounce search input
+    Prevent Kafka event spam on every keystroke
+  */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  /*
+    Track only final debounced search
+  */
+  useEffect(() => {
+    if (debouncedSearch.trim() && token) {
+      trackActivity("PRODUCT_SEARCHED", {
+        search_text: debouncedSearch,
+      });
+    }
+  }, [debouncedSearch]);
+
+  /*
+    Generic customer activity tracker
+  */
+  const trackActivity = async (eventType, payload) => {
+    try {
+      await api.post(
+        "/activity/track",
+        {
+          event_type: eventType,
+          payload,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+    } catch (err) {
+      console.error("Activity tracking failed:", err);
+    }
+  };
 
   /*
     Signup
@@ -89,14 +139,27 @@ function App() {
   */
   const handleLogout = () => {
     localStorage.removeItem("quickcart_token");
+
     setToken(null);
     setProducts([]);
     setCart([]);
     setShowCheckout(false);
+    setSearchText("");
+    setDebouncedSearch("");
+    setMessage("");
   };
 
   /*
-    Add product to cart
+    Search handler
+    UI updates immediately
+    Analytics handled by debounce
+  */
+  const handleSearch = (value) => {
+    setSearchText(value);
+  };
+
+  /*
+    Add item to cart
   */
   const addToCart = (product) => {
     const existing = cart.find(
@@ -120,6 +183,11 @@ function App() {
             : item
         )
       );
+
+      trackActivity("CART_QTY_INCREASED", {
+        product_id: product.product_id,
+      });
+
     } else {
       setCart([
         ...cart,
@@ -132,6 +200,11 @@ function App() {
           available_stock: product.stock_qty,
         },
       ]);
+
+      trackActivity("CART_ITEM_ADDED", {
+        product_id: product.product_id,
+        qty: 1,
+      });
     }
   };
 
@@ -140,16 +213,27 @@ function App() {
   */
   const increaseQty = (product_id) => {
     setCart(
-      cart.map((item) =>
-        item.product_id === product_id
-          ? {
-              ...item,
-              qty: item.qty + 1,
-              line_total: (item.qty + 1) * item.unit_price,
-            }
-          : item
-      )
+      cart.map((item) => {
+        if (item.product_id === product_id) {
+          if (item.qty >= item.available_stock) {
+            setMessage("Stock limit reached.");
+            return item;
+          }
+
+          return {
+            ...item,
+            qty: item.qty + 1,
+            line_total: (item.qty + 1) * item.unit_price,
+          };
+        }
+
+        return item;
+      })
     );
+
+    trackActivity("CART_QTY_INCREASED", {
+      product_id,
+    });
   };
 
   /*
@@ -173,6 +257,10 @@ function App() {
         })
         .filter(Boolean)
     );
+
+    trackActivity("CART_QTY_DECREASED", {
+      product_id,
+    });
   };
 
   /*
@@ -184,10 +272,26 @@ function App() {
         (item) => item.product_id !== product_id
       )
     );
+
+    trackActivity("CART_ITEM_REMOVED", {
+      product_id,
+    });
   };
 
   /*
-    Cart subtotal
+    Checkout started
+  */
+  const startCheckout = () => {
+    setShowCheckout(true);
+
+    trackActivity("CHECKOUT_STARTED", {
+      cart_size: cart.length,
+      cart_total: cartTotal,
+    });
+  };
+
+  /*
+    Cart total
   */
   const cartTotal = cart.reduce(
     (sum, item) => sum + item.line_total,
@@ -195,7 +299,7 @@ function App() {
   );
 
   /*
-    REAL order placement
+    Real order placement
   */
   const placeOrder = async () => {
     try {
@@ -222,17 +326,26 @@ function App() {
       setCart([]);
       setShowCheckout(false);
 
-      // Refresh updated stock
       fetchProducts();
 
     } catch (err) {
       console.error(err);
+
       setMessage(
         err.response?.data?.detail ||
         "Order failed"
       );
     }
   };
+
+  /*
+    Product filtering
+  */
+  const filteredProducts = products.filter((product) =>
+    product.product_name
+      .toLowerCase()
+      .includes(searchText.toLowerCase())
+  );
 
   /*
     AUTH SCREEN
@@ -319,17 +432,13 @@ function App() {
           {authMode === "login" ? (
             <>
               <button onClick={handleLogin}>Login</button>
-
               <p onClick={() => setAuthMode("signup")}>
                 Signup
               </p>
             </>
           ) : (
             <>
-              <button onClick={handleSignup}>
-                Signup
-              </button>
-
+              <button onClick={handleSignup}>Signup</button>
               <p onClick={() => setAuthMode("login")}>
                 Login
               </p>
@@ -347,18 +456,23 @@ function App() {
     <div className="container">
       <div className="top-bar">
         <h1>QuickCart Store</h1>
-        <button onClick={handleLogout}>
-          Logout
-        </button>
+        <button onClick={handleLogout}>Logout</button>
       </div>
 
       {message && <div>{message}</div>}
+
+      <input
+        type="text"
+        placeholder="Search products..."
+        value={searchText}
+        onChange={(e) => handleSearch(e.target.value)}
+      />
 
       <div className="layout">
         <div className="catalog">
           <h2>Products</h2>
 
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <div key={product.product_id}>
               <h3>{product.product_name}</h3>
               <p>₹{product.price}</p>
@@ -383,27 +497,15 @@ function App() {
               <p>Qty: {item.qty}</p>
               <p>₹{item.line_total}</p>
 
-              <button
-                onClick={() =>
-                  increaseQty(item.product_id)
-                }
-              >
+              <button onClick={() => increaseQty(item.product_id)}>
                 +
               </button>
 
-              <button
-                onClick={() =>
-                  decreaseQty(item.product_id)
-                }
-              >
+              <button onClick={() => decreaseQty(item.product_id)}>
                 -
               </button>
 
-              <button
-                onClick={() =>
-                  removeItem(item.product_id)
-                }
-              >
+              <button onClick={() => removeItem(item.product_id)}>
                 Remove
               </button>
             </div>
@@ -412,11 +514,7 @@ function App() {
           <h3>Total: ₹{cartTotal}</h3>
 
           {!showCheckout && cart.length > 0 && (
-            <button
-              onClick={() =>
-                setShowCheckout(true)
-              }
-            >
+            <button onClick={startCheckout}>
               Checkout
             </button>
           )}

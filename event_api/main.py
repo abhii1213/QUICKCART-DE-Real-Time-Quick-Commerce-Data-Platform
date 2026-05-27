@@ -30,6 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from event_api.routes.product_routes import router as product_router
 from event_api.routes.auth_routes import router as auth_router
 from event_api.routes.order_routes import router as order_router
+from event_api.routes.activity_routes import router as activity_router
 
 app = FastAPI()
 
@@ -53,6 +54,8 @@ app.include_router(auth_router)
 
 # Order APIs
 app.include_router(order_router)
+
+app.include_router(activity_router)
 
 # --- ADD THIS BACK IN ---
 @app.get("/")
