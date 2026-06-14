@@ -22,6 +22,7 @@ def create_order(user_id, order_data):
     try:
         total_amount = 0
         processed_items = []
+        updated_inventory = []
 
         # Validate all products first
         for item in order_data.items:
@@ -78,6 +79,10 @@ def create_order(user_id, order_data):
 
             # reduce inventory
             item["product_ref"].stock_qty -= item["qty"]
+            updated_inventory.append({
+                "product_id": item["product_id"],
+                "stock_qty": item["product_ref"].stock_qty
+            })
 
         db.commit()
 
@@ -86,7 +91,8 @@ def create_order(user_id, order_data):
         return {
             "order_id": order_id,
             "total_amount": total_amount,
-            "items": processed_items
+            "items": processed_items,
+            "updated_inventory": updated_inventory
         }, None
 
     except Exception as e:

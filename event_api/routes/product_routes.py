@@ -93,7 +93,7 @@ def update_price(product_id: str, payload: ProductPriceUpdate):
         "admin-ui",
         {
             "product_id": product_id,
-            "price": payload.price
+            "new_price": payload.price
         }
     )
 

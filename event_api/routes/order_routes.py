@@ -102,6 +102,19 @@ def place_order(
 
     publish_event("order_events", event)
 
+    for inventory in result["updated_inventory"]:
+        inventory_event = build_event(
+            "INVENTORY_UPDATED",
+            {
+                "product_id": inventory["product_id"],
+                "stock_qty": inventory["stock_qty"]
+            }
+        )
+        publish_event(
+            "inventory_events",
+            inventory_event
+        )
+
     return {
         "message": "Order placed successfully",
         "order_id": result["order_id"],

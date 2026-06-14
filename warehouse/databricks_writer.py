@@ -36,7 +36,7 @@ class DatabricksWriter:
         cursor = connection.cursor()
 
         insert_query = f"""
-        INSERT INTO quickcart_bronze.{table_name} (
+        INSERT INTO quickcart_de.quickcart_bronze.{table_name} (
             event_id,
             event_type,
             event_version,
@@ -70,3 +70,39 @@ class DatabricksWriter:
         connection.close()
 
         print(f"Inserted into Databricks Bronze: {table_name}")
+
+
+    def insert_cdc_record(
+        self,
+        table_name: str,
+        record: dict
+    ):
+        # Generic CDC table insert
+        connection = self._connect()
+        cursor = connection.cursor()
+
+        columns = ", ".join(record.keys())
+
+        placeholders = ", ".join(
+            ["?"] * len(record)
+        )
+
+        query = f"""
+        INSERT INTO quickcart_de.quickcart_bronze.{table_name}
+        ({columns})
+        VALUES ({placeholders})
+        """
+
+        cursor.execute(
+            query,
+            tuple(record.values())
+        )
+
+        connection.commit()
+
+        cursor.close()
+        connection.close()
+
+        print(
+            f"Inserted into Databricks Bronze: {table_name}"
+        )

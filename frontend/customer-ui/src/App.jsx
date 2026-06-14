@@ -3,9 +3,7 @@ import "./App.css";
 import { api } from "./services/api";
 
 function App() {
-  const [token, setToken] = useState(
-    localStorage.getItem("quickcart_token")
-  );
+  const [token, setToken] = useState(localStorage.getItem("quickcart_token"));
 
   const [authMode, setAuthMode] = useState("login");
 
@@ -24,6 +22,7 @@ function App() {
   const [cart, setCart] = useState([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [message, setMessage] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   /*
     Fetch product catalog
@@ -84,7 +83,7 @@ function App() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
     } catch (err) {
       console.error("Activity tracking failed:", err);
@@ -98,10 +97,7 @@ function App() {
     try {
       const res = await api.post("/auth/signup", authForm);
 
-      localStorage.setItem(
-        "quickcart_token",
-        res.data.access_token
-      );
+      localStorage.setItem("quickcart_token", res.data.access_token);
 
       setToken(res.data.access_token);
       setMessage("Signup successful!");
@@ -121,10 +117,7 @@ function App() {
         password: authForm.password,
       });
 
-      localStorage.setItem(
-        "quickcart_token",
-        res.data.access_token
-      );
+      localStorage.setItem("quickcart_token", res.data.access_token);
 
       setToken(res.data.access_token);
       setMessage("Login successful!");
@@ -163,12 +156,15 @@ function App() {
   */
   const addToCart = (product) => {
     const existing = cart.find(
-      (item) => item.product_id === product.product_id
+      (item) => item.product_id === product.product_id,
     );
 
     if (existing) {
       if (existing.qty >= product.stock_qty) {
         setMessage("Stock limit reached.");
+        trackActivity("OUT_OF_STOCK_INTEREST", {
+          product_id: product.product_id,
+        });
         return;
       }
 
@@ -180,14 +176,13 @@ function App() {
                 qty: item.qty + 1,
                 line_total: (item.qty + 1) * item.unit_price,
               }
-            : item
-        )
+            : item,
+        ),
       );
 
       trackActivity("CART_QTY_INCREASED", {
         product_id: product.product_id,
       });
-
     } else {
       setCart([
         ...cart,
@@ -206,6 +201,17 @@ function App() {
         qty: 1,
       });
     }
+  };
+
+  /*
+  Product viewed
+*/
+  const viewProduct = (product) => {
+    setSelectedProduct(product);
+
+    trackActivity("PRODUCT_VIEWED", {
+      product_id: product.product_id,
+    });
   };
 
   /*
@@ -228,7 +234,7 @@ function App() {
         }
 
         return item;
-      })
+      }),
     );
 
     trackActivity("CART_QTY_INCREASED", {
@@ -255,7 +261,7 @@ function App() {
 
           return item;
         })
-        .filter(Boolean)
+        .filter(Boolean),
     );
 
     trackActivity("CART_QTY_DECREASED", {
@@ -267,11 +273,7 @@ function App() {
     Remove cart item
   */
   const removeItem = (product_id) => {
-    setCart(
-      cart.filter(
-        (item) => item.product_id !== product_id
-      )
-    );
+    setCart(cart.filter((item) => item.product_id !== product_id));
 
     trackActivity("CART_ITEM_REMOVED", {
       product_id,
@@ -293,10 +295,7 @@ function App() {
   /*
     Cart total
   */
-  const cartTotal = cart.reduce(
-    (sum, item) => sum + item.line_total,
-    0
-  );
+  const cartTotal = cart.reduce((sum, item) => sum + item.line_total, 0);
 
   /*
     Real order placement
@@ -311,15 +310,11 @@ function App() {
         payment_mode: "COD",
       };
 
-      const res = await api.post(
-        "/orders",
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await api.post("/orders", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       setMessage(res.data.message);
 
@@ -327,14 +322,10 @@ function App() {
       setShowCheckout(false);
 
       fetchProducts();
-
     } catch (err) {
       console.error(err);
 
-      setMessage(
-        err.response?.data?.detail ||
-        "Order failed"
-      );
+      setMessage(err.response?.data?.detail || "Order failed");
     }
   };
 
@@ -342,189 +333,298 @@ function App() {
     Product filtering
   */
   const filteredProducts = products.filter((product) =>
-    product.product_name
-      .toLowerCase()
-      .includes(searchText.toLowerCase())
+    product.product_name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   /*
-    AUTH SCREEN
+    ==================================================
+    AUTH SCREEN UI
+    ==================================================
   */
   if (!token) {
     return (
-      <div className="container">
-        <h1>QuickCart Customer Portal</h1>
-
-        {message && <div>{message}</div>}
+      <div className="auth-wrapper">
+        {/* Global Toast Message */}
+        {message && <div className="toast-message">{message}</div>}
 
         <div className="auth-box">
-          <h2>
-            {authMode === "login"
-              ? "Login"
-              : "Signup"}
-          </h2>
+          <div className="auth-header">
+            <h1>QuickCart</h1>
+            <p>Your daily essentials, delivered fast.</p>
+          </div>
 
-          {authMode === "signup" && (
-            <>
-              <input
-                placeholder="Name"
-                onChange={(e) =>
-                  setAuthForm({
-                    ...authForm,
-                    name: e.target.value,
-                  })
-                }
-              />
+          <h2>{authMode === "login" ? "Welcome Back" : "Create an Account"}</h2>
 
-              <input
-                placeholder="Phone"
-                onChange={(e) =>
-                  setAuthForm({
-                    ...authForm,
-                    phone: e.target.value,
-                  })
-                }
-              />
+          <div className="auth-form">
+            {authMode === "signup" && (
+              <div className="form-grid">
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, name: e.target.value })
+                  }
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, phone: e.target.value })
+                  }
+                />
+                <input
+                  type="text"
+                  placeholder="City"
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, city: e.target.value })
+                  }
+                />
+                <input
+                  type="text"
+                  placeholder="Area"
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, area: e.target.value })
+                  }
+                />
+              </div>
+            )}
 
-              <input
-                placeholder="City"
-                onChange={(e) =>
-                  setAuthForm({
-                    ...authForm,
-                    city: e.target.value,
-                  })
-                }
-              />
+            <input
+              type="email"
+              placeholder="Email Address"
+              onChange={(e) =>
+                setAuthForm({ ...authForm, email: e.target.value })
+              }
+            />
 
-              <input
-                placeholder="Area"
-                onChange={(e) =>
-                  setAuthForm({
-                    ...authForm,
-                    area: e.target.value,
-                  })
-                }
-              />
-            </>
-          )}
+            <input
+              type="password"
+              placeholder="Password"
+              onChange={(e) =>
+                setAuthForm({ ...authForm, password: e.target.value })
+              }
+            />
 
-          <input
-            placeholder="Email"
-            onChange={(e) =>
-              setAuthForm({
-                ...authForm,
-                email: e.target.value,
-              })
-            }
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            onChange={(e) =>
-              setAuthForm({
-                ...authForm,
-                password: e.target.value,
-              })
-            }
-          />
-
-          {authMode === "login" ? (
-            <>
-              <button onClick={handleLogin}>Login</button>
-              <p onClick={() => setAuthMode("signup")}>
-                Signup
-              </p>
-            </>
-          ) : (
-            <>
-              <button onClick={handleSignup}>Signup</button>
-              <p onClick={() => setAuthMode("login")}>
-                Login
-              </p>
-            </>
-          )}
+            <div className="auth-actions">
+              {authMode === "login" ? (
+                <>
+                  <button
+                    className="btn-primary btn-block"
+                    onClick={handleLogin}
+                  >
+                    Login
+                  </button>
+                  <p className="auth-toggle">
+                    Don't have an account?{" "}
+                    <span onClick={() => setAuthMode("signup")}>Sign up</span>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="btn-primary btn-block"
+                    onClick={handleSignup}
+                  >
+                    Signup
+                  </button>
+                  <p className="auth-toggle">
+                    Already have an account?{" "}
+                    <span onClick={() => setAuthMode("login")}>Log in</span>
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   /*
-    SHOPPING SCREEN
+    ==================================================
+    SHOPPING SCREEN UI
+    ==================================================
   */
   return (
-    <div className="container">
-      <div className="top-bar">
-        <h1>QuickCart Store</h1>
-        <button onClick={handleLogout}>Logout</button>
-      </div>
+    <div className="app-container">
+      {/* Global Toast Message */}
+      {message && <div className="toast-message active">{message}</div>}
 
-      {message && <div>{message}</div>}
+      {/* Top Navigation */}
+      <header className="top-bar">
+        <div className="top-bar-content">
+          <h1>🛒 QuickCart</h1>
 
-      <input
-        type="text"
-        placeholder="Search products..."
-        value={searchText}
-        onChange={(e) => handleSearch(e.target.value)}
-      />
+          <div className="search-container">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search products..."
+              value={searchText}
+              onChange={(e) => handleSearch(e.target.value)}
+            />
+          </div>
 
-      <div className="layout">
-        <div className="catalog">
-          <h2>Products</h2>
-
-          {filteredProducts.map((product) => (
-            <div key={product.product_id}>
-              <h3>{product.product_name}</h3>
-              <p>₹{product.price}</p>
-              <p>Stock: {product.stock_qty}</p>
-
-              <button
-                disabled={product.stock_qty <= 0}
-                onClick={() => addToCart(product)}
-              >
-                Add
-              </button>
-            </div>
-          ))}
+          <button className="btn-outline" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
+      </header>
 
-        <div className="cart">
-          <h2>Cart</h2>
+      {/* Main Content Layout */}
+      <main className="shop-layout">
+        {/* Product Catalog */}
+        <section className="catalog-section">
+          <div className="catalog-header">
+            <h2>Products</h2>
+            <span className="product-count">
+              {filteredProducts.length} items found
+            </span>
+          </div>
 
-          {cart.map((item) => (
-            <div key={item.product_id}>
-              <p>{item.product_name}</p>
-              <p>Qty: {item.qty}</p>
-              <p>₹{item.line_total}</p>
+          <div className="product-grid">
+            {filteredProducts.length === 0 ? (
+              <p className="empty-state">
+                No products found matching your search.
+              </p>
+            ) : (
+              filteredProducts.map((product) => (
+                <div
+                  className="product-card"
+                  key={product.product_id}
+                  onClick={() => viewProduct(product)}
+                >
+                  <div className="product-info">
+                    <h3>{product.product_name}</h3>
+                    <div className="product-meta">
+                      <span className="price">₹{product.price}</span>
+                      <span
+                        className={`stock-badge ${product.stock_qty > 0 ? "in-stock" : "out-of-stock"}`}
+                      >
+                        {product.stock_qty > 0
+                          ? `${product.stock_qty} left`
+                          : "Out of stock"}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    className="btn-primary"
+                    disabled={product.stock_qty <= 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToCart(product);
+                    }}
+                  >
+                    {product.stock_qty <= 0 ? "Unavailable" : "Add to Cart"}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
-              <button onClick={() => increaseQty(item.product_id)}>
-                +
-              </button>
+        {/* Shopping Cart Sidebar */}
+        <aside className="cart-sidebar">
+          <h2>Your Cart</h2>
 
-              <button onClick={() => decreaseQty(item.product_id)}>
-                -
-              </button>
-
-              <button onClick={() => removeItem(item.product_id)}>
-                Remove
-              </button>
+          {cart.length === 0 ? (
+            <div className="empty-cart">
+              <p>Your cart is empty.</p>
+              <span>Add items to get started!</span>
             </div>
-          ))}
+          ) : (
+            <div className="cart-items">
+              {cart.map((item) => (
+                <div className="cart-item" key={item.product_id}>
+                  <div className="item-details">
+                    <p className="item-name">{item.product_name}</p>
+                    <p className="item-price">₹{item.line_total}</p>
+                  </div>
 
-          <h3>Total: ₹{cartTotal}</h3>
-
-          {!showCheckout && cart.length > 0 && (
-            <button onClick={startCheckout}>
-              Checkout
-            </button>
+                  <div className="item-controls">
+                    <div className="qty-group">
+                      <button onClick={() => decreaseQty(item.product_id)}>
+                        -
+                      </button>
+                      <span>{item.qty}</span>
+                      <button onClick={() => increaseQty(item.product_id)}>
+                        +
+                      </button>
+                    </div>
+                    <button
+                      className="btn-remove"
+                      onClick={() => removeItem(item.product_id)}
+                      title="Remove item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
-          {showCheckout && (
-            <button onClick={placeOrder}>
-              Place Order
-            </button>
-          )}
-        </div>
+          {/* Checkout Area */}
+          <div className="cart-footer">
+            <div className="cart-total">
+              <span>Total:</span>
+              <span>₹{cartTotal}</span>
+            </div>
+
+            {!showCheckout && cart.length > 0 && (
+              <button className="btn-primary btn-block" onClick={startCheckout}>
+                Proceed to Checkout
+              </button>
+            )}
+
+            {showCheckout && (
+              <div className="checkout-confirm">
+                <p>
+                  Payment Mode: <strong>Cash on Delivery</strong>
+                </p>
+                <button className="btn-success btn-block" onClick={placeOrder}>
+                  Confirm & Place Order
+                </button>
+                <button
+                  className="btn-text btn-block"
+                  onClick={() => setShowCheckout(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </aside>
+      </main>
+      <div>
+        {selectedProduct && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <h2>{selectedProduct.product_name}</h2>
+
+              {/* <p>Product ID: {selectedProduct.product_id}</p> */}
+
+              <p>Category: {selectedProduct.category}</p>
+
+              <p>Price: ₹{selectedProduct.price}</p>
+
+              <p>Available Stock: {selectedProduct.stock_qty}</p>
+
+              <div className="modal-actions">
+                <button
+                  disabled={selectedProduct.stock_qty <= 0}
+                  onClick={() => addToCart(selectedProduct)}
+                >
+                  {selectedProduct.stock_qty <= 0
+                    ? "Out Of Stock"
+                    : "Add To Cart"}
+                </button>
+
+                <button onClick={() => setSelectedProduct(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

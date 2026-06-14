@@ -5,23 +5,23 @@ from warehouse.databricks_writer import DatabricksWriter
 
 
 def start_consumer():
-    """
-    Consumer for product catalog events
+    # """
+    # Consumer for product catalog events
 
-    Handles:
-    - PRODUCT_CREATED
-    - PRICE_UPDATED
-    - PRODUCT_DELISTED
-    - FLASH_SALE_STARTED
+    # Handles:
+    # - PRODUCT_CREATED
+    # - PRICE_UPDATED
+    # - PRODUCT_DELISTED
+    # - FLASH_SALE_STARTED
 
-    Responsibilities:
-    - Consume product catalog change events
-    - Enrich processed records
-    - Persist Bronze product events
+    # Responsibilities:
+    # - Consume product catalog change events
+    # - Enrich processed records
+    # - Persist Bronze product events
 
-    Target Table:
-    quickcart_bronze.bronze_product_events
-    """
+    # Target Table:
+    # quickcart_bronze.bronze_product_events
+    # """
 
     consumer = KafkaConsumer(
         "product_events",
