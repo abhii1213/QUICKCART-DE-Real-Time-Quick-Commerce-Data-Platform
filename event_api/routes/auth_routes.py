@@ -48,8 +48,11 @@ def signup(payload: SignupRequest):
         "USER_REGISTERED",
         {
             "user_id": result["user"].user_id,
+            "name": result["user"].name,
+            "phone": result["user"].phone,
             "email": result["user"].email,
-            "city": result["user"].city
+            "city": result["user"].city,
+            "area": result["user"].area
         }
     )
 

@@ -1,9 +1,6 @@
 import threading
 import time
 
-from kafka_engine.consumers.order_consumer import start_consumer as start_order
-from kafka_engine.consumers.product_consumer import start_consumer as start_product
-from kafka_engine.consumers.inventory_consumer import start_consumer as start_inventory
 from kafka_engine.consumers.cart_consumer import start_consumer as start_cart
 from kafka_engine.consumers.activity_consumer import start_consumer as start_activity
 from kafka_engine.consumers.products_cdc_consumer import start_consumer as products_cdc

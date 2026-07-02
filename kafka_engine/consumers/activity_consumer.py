@@ -12,6 +12,7 @@ def start_consumer():
     - PRODUCT_SEARCHED
     - PRODUCT_VIEWED
     - CHECKOUT_STARTED
+    - order_placed
 
     Responsibilities:
     - Process customer engagement events

@@ -46,13 +46,13 @@ def create_new_product(product: ProductCreate):
 
     create_product(product)
 
-    event = build_event(
-        "PRODUCT_CREATED",
-        "admin-ui",
-        product.model_dump()
-    )
+    # event = build_event(
+    #     "PRODUCT_CREATED",
+    #     "admin-ui",
+    #     product.model_dump()
+    # )
 
-    publish_event("product_events", event)
+    # publish_event("product_events", event)
 
     return {"message": "Product created successfully"}
 
@@ -88,16 +88,16 @@ def update_price(product_id: str, payload: ProductPriceUpdate):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    event = build_event(
-        "PRICE_UPDATED",
-        "admin-ui",
-        {
-            "product_id": product_id,
-            "new_price": payload.price
-        }
-    )
+    # event = build_event(
+    #     "PRICE_UPDATED",
+    #     "admin-ui",
+    #     {
+    #         "product_id": product_id,
+    #         "new_price": payload.price
+    #     }
+    # )
 
-    publish_event("product_events", event)
+    # publish_event("product_events", event)
 
     return {"message": "Price updated"}
 
@@ -113,16 +113,16 @@ def update_stock(product_id: str, payload: ProductInventoryUpdate):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    event = build_event(
-        "INVENTORY_UPDATED",
-        "admin-ui",
-        {
-            "product_id": product_id,
-            "stock_qty": payload.stock_qty
-        }
-    )
+    # event = build_event(
+    #     "INVENTORY_UPDATED",
+    #     "admin-ui",
+    #     {
+    #         "product_id": product_id,
+    #         "stock_qty": payload.stock_qty
+    #     }
+    # )
 
-    publish_event("inventory_events", event)
+    # publish_event("inventory_events", event)
 
     return {"message": "Inventory updated"}
 
@@ -138,14 +138,14 @@ def delist_product(product_id: str):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    event = build_event(
-        "PRODUCT_DELISTED",
-        "admin-ui",
-        {
-            "product_id": product_id
-        }
-    )
+    # event = build_event(
+    #     "PRODUCT_DELISTED",
+    #     "admin-ui",
+    #     {
+    #         "product_id": product_id
+    #     }
+    # )
 
-    publish_event("product_events", event)
+    # publish_event("product_events", event)
 
     return {"message": "Product delisted"}
