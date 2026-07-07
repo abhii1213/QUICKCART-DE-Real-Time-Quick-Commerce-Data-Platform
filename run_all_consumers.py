@@ -1,11 +1,15 @@
 import threading
 import time
 
-from kafka_engine.consumers.cart_consumer import start_consumer as start_cart
-from kafka_engine.consumers.activity_consumer import start_consumer as start_activity
+# from kafka_engine.consumers.cart_consumer import start_consumer as start_cart
+# from kafka_engine.consumers.activity_consumer import start_consumer as start_activity
 from kafka_engine.consumers.products_cdc_consumer import start_consumer as products_cdc
 from kafka_engine.consumers.orders_cdc_consumer import start_consumer as orders_cdc
 from kafka_engine.consumers.order_items_cdc_consumer import start_consumer as order_items_cdc
+from kafka_engine.consumers.user_auth_consumer import start_consumer as user_auth_consumer
+from kafka_engine.consumers.user_browsing_consumer import start_consumer as user_browsing_consumer
+from kafka_engine.consumers.user_cart_consumer import start_consumer as user_cart_consumer
+from kafka_engine.consumers.user_order_consumer import start_consumer as user_order_consumer
 
 
 def launch(target, name):
@@ -24,11 +28,15 @@ if __name__ == "__main__":
         # launch(start_order, "order-consumer"),
         # launch(start_product, "product-consumer"),
         # launch(start_inventory, "inventory-consumer"),
-        launch(start_cart, "cart-consumer"),
-        launch(start_activity, "activity-consumer"),
+        # launch(start_cart, "cart-consumer"),
+        # launch(start_activity, "activity-consumer"),
         launch(products_cdc, "product-cdc-consumer"),
         launch(orders_cdc, "order-cdc-consumer"),
-        launch(order_items_cdc, "order-items-cdc-consumer")
+        launch(order_items_cdc, "order-items-cdc-consumer"),
+        launch(user_auth_consumer, "user-auth-events-consumer"),
+        launch(user_browsing_consumer, "user-browsing-events-consumer"),
+        launch(user_cart_consumer, "user-cart-events-consumer"),
+        launch(user_order_consumer, "user-order-events-consumer")
     ]
 
     print("All consumers running. Press CTRL + C to stop.")

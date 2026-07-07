@@ -155,6 +155,15 @@ function App() {
     Add item to cart
   */
   const addToCart = (product) => {
+    // 1. NEW: Check if product is completely out of stock first
+    if (product.stock_qty <= 0) {
+      setMessage("Product is out of stock.");
+      trackActivity("OUT_OF_STOCK_INTEREST", {
+        product_id: product.product_id,
+      });
+      return; // Stop execution
+    }
+
     const existing = cart.find(
       (item) => item.product_id === product.product_id,
     );
@@ -209,34 +218,47 @@ function App() {
   const viewProduct = (product) => {
     setSelectedProduct(product);
 
-    trackActivity("PRODUCT_VIEWED", {
-      product_id: product.product_id,
-    });
+    if (product.stock_qty <= 0) {
+      trackActivity("OUT_OF_STOCK_INTEREST", {
+        product_id: product.product_id,
+      });
+    } else {
+      trackActivity("PRODUCT_VIEWED", {
+        product_id: product.product_id,
+      });
+    }
   };
 
   /*
     Increase cart quantity
   */
   const increaseQty = (product_id) => {
+    // 1. Find the item first
+    const targetItem = cart.find((item) => item.product_id === product_id);
+
+    // 2. Check the limit before doing anything else
+    if (targetItem && targetItem.qty >= targetItem.available_stock) {
+      setMessage("Stock limit reached.");
+      // Optional: Track that they wanted more than you have!
+      trackActivity("OUT_OF_STOCK_INTEREST", { product_id }); 
+      return; // EXIT EARLY - The code below this line will not run.
+    }
+
+    // 3. If we pass the check, update the cart
     setCart(
       cart.map((item) => {
         if (item.product_id === product_id) {
-          if (item.qty >= item.available_stock) {
-            setMessage("Stock limit reached.");
-            return item;
-          }
-
           return {
             ...item,
             qty: item.qty + 1,
             line_total: (item.qty + 1) * item.unit_price,
           };
         }
-
         return item;
       }),
     );
 
+    // 4. Fire the event (only happens if the return above didn't trigger)
     trackActivity("CART_QTY_INCREASED", {
       product_id,
     });
@@ -508,7 +530,7 @@ function App() {
                     </div>
                   </div>
                   <button
-                    className="btn-primary"
+                    className={`btn-primary ${product.stock_qty <= 0 ? "btn-disabled-look" : ""}`}
                     disabled={product.stock_qty <= 0}
                     onClick={(e) => {
                       e.stopPropagation();

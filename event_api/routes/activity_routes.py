@@ -13,6 +13,24 @@ router = APIRouter(
     tags=["Activity Tracking"]
 )
 
+# -------------------------------------------------------------------
+# DYNAMIC TOPIC ROUTING MAP
+# Maps frontend event types to their specific backend Kafka topics
+# -------------------------------------------------------------------
+EVENT_TOPIC_MAP = {
+    # Browsing Events
+    "PRODUCT_SEARCHED": "user_browsing_events",
+    "PRODUCT_VIEWED": "user_browsing_events",
+    "OUT_OF_STOCK_INTEREST": "user_browsing_events",
+    
+    # Cart Events
+    "CART_ITEM_ADDED": "user_cart_events",
+    "CART_QTY_INCREASED": "user_cart_events",
+    "CART_QTY_DECREASED": "user_cart_events",
+    "CART_ITEM_REMOVED": "user_cart_events",
+    "CHECKOUT_STARTED": "user_cart_events"
+}
+
 
 def build_event(event_type, payload):
     """
@@ -35,14 +53,6 @@ def track_activity(
 ):
     """
     Generic customer activity tracking API
-
-    Used for:
-    - PRODUCT_SEARCHED
-    - CART_ITEM_ADDED
-    - CART_QTY_INCREASED
-    - CART_QTY_DECREASED
-    - CART_ITEM_REMOVED
-    - CHECKOUT_STARTED
     """
 
     # Validate JWT presence
@@ -68,22 +78,39 @@ def track_activity(
             status_code=401,
             detail="Invalid token"
         )
+        
+    # ---------------------------------------------------------------
+    # 1. Determine Target Topic
+    # ---------------------------------------------------------------
+    target_topic = EVENT_TOPIC_MAP.get(payload.event_type)
+    
+    # Fail fast if the frontend sends an unmapped or misspelled event type
+    if not target_topic:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported event type: {payload.event_type}"
+        )
 
+    # 2. Enrich Payload
     enriched_payload = {
         "user_id": user_data["user_id"],
         **payload.payload
     }
 
+    # 3. Build Event Envelope
     event = build_event(
         payload.event_type,
         enriched_payload
     )
 
+    # ---------------------------------------------------------------
+    # 4. Publish to the dynamically resolved topic
+    # ---------------------------------------------------------------
     publish_event(
-        "user_activity_events",
+        target_topic,
         event
     )
 
     return {
-        "message": "Activity tracked"
+        "message": f"Activity tracked to {target_topic}"
     }

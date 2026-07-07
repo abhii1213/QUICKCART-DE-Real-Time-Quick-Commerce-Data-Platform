@@ -57,7 +57,7 @@ def signup(payload: SignupRequest):
     )
 
     publish_event(
-        "user_activity_events",
+        "user_auth_events",
         event
     )
 
@@ -90,7 +90,7 @@ def login(payload: LoginRequest):
     )
 
     publish_event(
-        "user_activity_events",
+        "user_auth_events",
         event
     )
 
